@@ -36,6 +36,8 @@ public class FileController {
             try{
                 FileMetadata metadata = fileService.saveFile(file);
                 return  ResponseEntity.ok(metadata);
+            }catch (IllegalArgumentException e) {
+                return ResponseEntity.status(400).body(e.getMessage());
             }catch (IOException e){
                 return ResponseEntity.status(500).body("Dosya yüklenirken hata oluştu: " + e.getMessage());
             }

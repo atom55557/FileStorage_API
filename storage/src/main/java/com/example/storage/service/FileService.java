@@ -15,6 +15,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,11 +28,34 @@ public class FileService {
 
     private final FileRepository fileRepository;
 
+    //Sadece izin verilen MIME türlerinin listesi (Güvenli Liste)
+    private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList(
+            "image/jpeg",
+            "image/png",
+            "application/pdf"
+    );
+
     public List<FileMetadata> getAllFiles(){
         return fileRepository.findAll();
     }
 
     public FileMetadata saveFile(MultipartFile file) throws IOException {
+
+        // Dosya türü kontrolü
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
+            throw new IllegalArgumentException("Geçersiz dosya türü! Sadece JPEG, PNG ve PDF dosyaları yüklenebilir.");
+        }
+
+        // Ekstra Güvenlik (Uzantı kontrolü)
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null) {
+            String lowerCaseName = originalFilename.toLowerCase();
+            if (lowerCaseName.endsWith(".exe") || lowerCaseName.endsWith(".bat") || lowerCaseName.endsWith(".sh")) {
+                throw new IllegalArgumentException("Güvenlik nedeniyle çalıştırılabilir (.exe, .bat, .sh) dosyalar yüklenemez!");
+            }
+        }
+
         // Yükleme klasörü yoksa oluştur
         File directory = new File(uploadDir);
         if (!directory.exists()) {
