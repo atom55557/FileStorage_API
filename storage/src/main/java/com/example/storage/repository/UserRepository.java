@@ -1,13 +1,12 @@
 package com.example.storage.repository;
 
-import com.example.storage.entity.FileMetadata;
 import com.example.storage.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import java.util.Optional;
 
 @Repository
-public interface FileRepository extends JpaRepository<FileMetadata, Long> {
-    List<FileMetadata> findByUploadedBy(User user);
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUserName(String userName);
 }

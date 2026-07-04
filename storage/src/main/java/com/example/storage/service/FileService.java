@@ -1,17 +1,21 @@
 package com.example.storage.service;
 
 import com.example.storage.entity.FileMetadata;
+import com.example.storage.entity.User;
 import com.example.storage.repository.FileRepository;
+import com.example.storage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,6 +31,20 @@ public class FileService {
     private String uploadDir;
 
     private final FileRepository fileRepository;
+    private final UserRepository userRepository;
+
+    private User getCurrentUser() {
+        String userName = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByUserName(userName)
+                .orElseThrow(() -> new RuntimeException("Aktif kullanıcı veritabanında bulunamadı."));
+    }
+
+
+    private boolean isAdmin() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
 
     //Sadece izin verilen MIME türlerinin listesi (Güvenli Liste)
     private static final List<String> ALLOWED_MIME_TYPES = Arrays.asList(
@@ -36,10 +54,16 @@ public class FileService {
     );
 
     public List<FileMetadata> getAllFiles(){
-        return fileRepository.findAll();
+        if (isAdmin()) {
+            return fileRepository.findAll();
+        }
+        User currentUser = getCurrentUser();
+
+        return fileRepository.findByUploadedBy(currentUser);
     }
 
     public FileMetadata saveFile(MultipartFile file) throws IOException {
+        User currentUser = getCurrentUser();
 
         // Dosya türü kontrolü
         String contentType = file.getContentType();
@@ -75,6 +99,7 @@ public class FileService {
         metadata.setFileType(file.getContentType());
         metadata.setSize(file.getSize());
         metadata.setFilePath(filePath.toString());
+        metadata.setUploadedBy(currentUser);
 
         return fileRepository.save(metadata);
     }
@@ -83,6 +108,12 @@ public class FileService {
         // 1. Veritabanından dosya bilgilerini getir, bulamazsa hata fırlat
         FileMetadata metadata = fileRepository.findById(id)
                 .orElseThrow(()-> new RuntimeException("Dosya veritabanında bulunamadı. ID:"+id));
+
+        User currentUser = getCurrentUser();
+
+        if(!isAdmin() && !metadata.getUploadedBy().getId().equals(currentUser.getId())){
+            throw new RuntimeException("Bu işlem için yetkiniz yok.");
+        }
 
         // 2. Dosyanın diskteki yolunu al ve Resource nesnesine çevir
         Path filePath = Paths.get(metadata.getFilePath());
@@ -102,6 +133,11 @@ public class FileService {
         // 1. Veritabanından bilgileri getir
         FileMetadata metadata = fileRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Silinecek dosya bulunamadı. ID: " + id));
+        User currentUser = getCurrentUser();
+
+        if(!isAdmin() && !metadata.getUploadedBy().getId().equals(currentUser.getId())){
+            throw new AccessDeniedException("Bu işlem için yetkiniz yok.");
+        }
 
         // 2. Önce Windows diskindeki fiziksel dosyayı sil
         Path filePath = Paths.get(metadata.getFilePath());
