@@ -2,14 +2,19 @@ package com.example.storage.service;
 
 import com.example.storage.dto.AuthRequest;
 import com.example.storage.dto.AuthResponse;
+import com.example.storage.dto.UserResponse;
 import com.example.storage.entity.User;
 import com.example.storage.enums.Role;
+import com.example.storage.mapper.UserMapper;
 import com.example.storage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +23,21 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+
+
+    private boolean isAdmin() {
+        return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    public List<UserResponse> getAllUsers(){
+        if(isAdmin()){
+            return userRepository.findAll().stream().map(UserMapper::toResponse).toList();
+        }
+        else {
+            throw new RuntimeException("Yetkiniz yok.");
+        }
+    }
 
     public AuthResponse register(AuthRequest request){
         if (userRepository.findByUserName(request.getUserName()).isPresent()) {
@@ -55,4 +75,5 @@ public class UserService {
         var jwtToken = jwtService.generateToken(user);
         return AuthResponse.builder().token(jwtToken).build();
     }
+
 }

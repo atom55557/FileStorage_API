@@ -1,7 +1,9 @@
 package com.example.storage.service;
 
+import com.example.storage.dto.FileMetaDataResponse;
 import com.example.storage.entity.FileMetadata;
 import com.example.storage.entity.User;
+import com.example.storage.mapper.FileMetaDataMapper;
 import com.example.storage.repository.FileRepository;
 import com.example.storage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -53,16 +55,16 @@ public class FileService {
             "application/pdf"
     );
 
-    public List<FileMetadata> getAllFiles(){
+    public List<FileMetaDataResponse> getAllFiles(){
         if (isAdmin()) {
-            return fileRepository.findAll();
+            return fileRepository.findAll().stream().map(FileMetaDataMapper::toResponse).toList();
         }
         User currentUser = getCurrentUser();
 
-        return fileRepository.findByUploadedBy(currentUser);
+        return fileRepository.findByUploadedBy(currentUser).stream().map(FileMetaDataMapper::toResponse).toList();
     }
 
-    public FileMetadata saveFile(MultipartFile file) throws IOException {
+    public FileMetaDataResponse saveFile(MultipartFile file) throws IOException {
         User currentUser = getCurrentUser();
 
         // Dosya türü kontrolü
@@ -100,8 +102,9 @@ public class FileService {
         metadata.setSize(file.getSize());
         metadata.setFilePath(filePath.toString());
         metadata.setUploadedBy(currentUser);
+        fileRepository.save(metadata);
 
-        return fileRepository.save(metadata);
+        return FileMetaDataMapper.toResponse(metadata);
     }
     //Dosya İndirme Metodu
     public Resource loadFileAsResource(long id) throws MalformedURLException {
