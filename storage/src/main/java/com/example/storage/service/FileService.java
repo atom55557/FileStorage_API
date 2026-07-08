@@ -6,6 +6,7 @@ import com.example.storage.entity.User;
 import com.example.storage.mapper.FileMetaDataMapper;
 import com.example.storage.repository.FileRepository;
 import com.example.storage.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -54,16 +55,17 @@ public class FileService {
             "image/png",
             "application/pdf"
     );
-
+    @Transactional
     public List<FileMetaDataResponse> getAllFiles(){
         if (isAdmin()) {
-            return fileRepository.findAll().stream().map(FileMetaDataMapper::toResponse).toList();
+            return fileRepository.findAllWithDetails().stream().map(FileMetaDataMapper::toResponse).toList();
         }
         User currentUser = getCurrentUser();
 
-        return fileRepository.findByUploadedBy(currentUser).stream().map(FileMetaDataMapper::toResponse).toList();
+        return fileRepository.findByUploadedByWithDetails(currentUser).stream().map(FileMetaDataMapper::toResponse).toList();
     }
 
+    @Transactional
     public FileMetaDataResponse saveFile(MultipartFile file) throws IOException {
         User currentUser = getCurrentUser();
 
@@ -106,7 +108,9 @@ public class FileService {
 
         return FileMetaDataMapper.toResponse(metadata);
     }
+
     //Dosya İndirme Metodu
+    @Transactional
     public Resource loadFileAsResource(long id) throws MalformedURLException {
         // 1. Veritabanından dosya bilgilerini getir, bulamazsa hata fırlat
         FileMetadata metadata = fileRepository.findById(id)
@@ -132,6 +136,7 @@ public class FileService {
     }
 
     // Dosya Silme Metodu
+    @Transactional
     public void deleteFile(Long id) throws IOException {
         // 1. Veritabanından bilgileri getir
         FileMetadata metadata = fileRepository.findById(id)

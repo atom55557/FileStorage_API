@@ -7,6 +7,7 @@ import com.example.storage.entity.User;
 import com.example.storage.enums.Role;
 import com.example.storage.mapper.UserMapper;
 import com.example.storage.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,9 +31,10 @@ public class UserService {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 
+    @Transactional
     public List<UserResponse> getAllUsers(){
         if(isAdmin()){
-            return userRepository.findAll().stream().map(UserMapper::toResponse).toList();
+            return userRepository.findAllWithDetails().stream().map(UserMapper::toResponse).toList();
         }
         else {
             throw new RuntimeException("Yetkiniz yok.");
